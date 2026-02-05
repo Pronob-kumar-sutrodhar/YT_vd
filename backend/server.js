@@ -118,7 +118,8 @@ app.get('/api/info', async (req, res) => {
       noWarnings: true,
       skipDownload: true,
       noCheckCertificates: true,
-      ignoreErrors: true
+      ignoreErrors: true,
+      format: 'best'
     });
 
     if (isPlaylist) {
@@ -163,7 +164,8 @@ app.get('/api/formats/:id', async (req, res) => {
       noWarnings: true,
       skipDownload: true,
       noCheckCertificates: true,
-      ignoreErrors: true
+      ignoreErrors: true,
+      format: 'best'
     }));
 
     const formats = (output.formats || []).map((format) => ({
