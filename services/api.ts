@@ -1,7 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { VideoItem, AppConfig, DownloadFormat, SpeedMode, VideoFormatOption } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = 'https://yt-vd-1.onrender.com';
 
 export const fetchPlaylistInfo = async (url: string): Promise<VideoItem[]> => {
   const response = await fetch(`${API_URL}/api/info?url=${encodeURIComponent(url)}`);
