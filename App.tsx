@@ -13,7 +13,7 @@ import { Button } from './components/Button';
 import { SettingsPanel } from './components/SettingsPanel';
 import { VideoList } from './components/VideoList';
 import { ProgressBar } from './components/ProgressBar';
-import { fetchPlaylistInfo, fetchVideoFormats, DownloadSocket } from './services/api';
+import { fetchPlaylistInfo, fetchVideoFormats, fetchFfmpegStatus, DownloadSocket } from './services/api';
 import { AppConfig, AudioQuality, DownloadFormat, SpeedMode, VideoItem, VideoQuality, PlaylistStats } from './types';
 
 function App() {
@@ -27,6 +27,7 @@ function App() {
   const downloadStartedAtRef = useRef<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [formatLoadingIds, setFormatLoadingIds] = useState<Set<string>>(new Set());
+  const [ffmpegAvailable, setFfmpegAvailable] = useState<boolean | null>(null);
   
   const [config, setConfig] = useState<AppConfig>({
     format: DownloadFormat.VIDEO,
@@ -59,6 +60,45 @@ function App() {
       return `${hours}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
     }
     return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+  };
+
+  const pickBestFormatId = (formats: VideoItem['formats']) => {
+    if (!formats || formats.length === 0) return undefined;
+    if (config.format === DownloadFormat.AUDIO) {
+      const audioOnly = formats.filter(format => format.hasAudio && !format.hasVideo);
+      if (audioOnly.length === 0) return undefined;
+      audioOnly.sort((a, b) => {
+        const aScore = (a.tbr ?? 0) + (a.filesize ?? 0) / 1_000_000;
+        const bScore = (b.tbr ?? 0) + (b.filesize ?? 0) / 1_000_000;
+        return bScore - aScore;
+      });
+      return audioOnly[0].id;
+    }
+
+    const bestByHeight = new Map<number, typeof formats[number]>();
+    const candidates = formats.filter(format => format.hasVideo && format.height);
+    if (candidates.length === 0) return undefined;
+    for (const format of candidates) {
+      const height = format.height as number;
+      const current = bestByHeight.get(height);
+      if (!current) {
+        bestByHeight.set(height, format);
+        continue;
+      }
+      const score = (item: typeof format) => {
+        const extBonus = item.ext?.toLowerCase() === 'mp4' ? 1000 : 0;
+        const fps = item.fps ?? 0;
+        const tbr = item.tbr ?? 0;
+        const size = (item.filesize ?? 0) / 1_000_000;
+        return extBonus + fps * 10 + tbr + size;
+      };
+      if (score(format) > score(current)) {
+        bestByHeight.set(height, format);
+      }
+    }
+
+    const sorted = Array.from(bestByHeight.values()).sort((a, b) => (b.height ?? 0) - (a.height ?? 0));
+    return sorted[0]?.id;
   };
 
   const handleFetchInfo = async () => {
@@ -153,6 +193,12 @@ function App() {
   }, []);
 
   useEffect(() => {
+    fetchFfmpegStatus()
+      .then((data) => setFfmpegAvailable(data.available))
+      .catch(() => setFfmpegAvailable(null));
+  }, []);
+
+  useEffect(() => {
     if (phase !== 'downloading' || downloadStartedAt === null) return;
     const intervalId = setInterval(() => {
       setElapsedMs(Date.now() - downloadStartedAt);
@@ -173,7 +219,8 @@ function App() {
       const formats = await fetchVideoFormats(id);
       setPlaylistItems(prev => prev.map(item => {
         if (item.id !== id) return item;
-        return { ...item, formats };
+        const bestFormatId = pickBestFormatId(formats);
+        return { ...item, formats, selectedFormatId: item.selectedFormatId ?? bestFormatId };
       }));
     } catch (err) {
       setError('Failed to load formats for this video.');
@@ -325,6 +372,14 @@ function App() {
               setConfig={setConfig} 
               disabled={phase === 'downloading' || phase === 'finished'} 
             />
+            {ffmpegAvailable === false && config.format === DownloadFormat.VIDEO && (
+              <div className="flex items-center gap-2 text-amber-200 bg-amber-900/30 py-2 px-4 rounded-xl border border-amber-700/40">
+                <AlertCircle className="w-4 h-4" />
+                <span className="text-sm font-medium">
+                  FFmpeg not detected. 2K/4K and video+audio merges will fail. Install FFmpeg to get a single file.
+                </span>
+              </div>
+            )}
 
             {/* Dashboard or Preview */}
             <div className="bg-dark-800/70 rounded-2xl border border-ink-800/60 overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.35)]">

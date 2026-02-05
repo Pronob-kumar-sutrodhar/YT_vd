@@ -11,6 +11,7 @@ const { Server } = require('socket.io');
 const http = require('http');
 const path = require('path');
 const fs = require('fs');
+const { execSync } = require('child_process');
 const youtubedl = require('yt-dlp-exec');
 const archiver = require('archiver');
 
@@ -29,6 +30,14 @@ app.use(express.json());
 // --- CONFIGURATION ---
 const DOWNLOAD_DIR = path.join(__dirname, 'downloads');
 if (!fs.existsSync(DOWNLOAD_DIR)) fs.mkdirSync(DOWNLOAD_DIR);
+
+let ffmpegAvailable = false;
+try {
+  execSync('ffmpeg -version', { stdio: 'ignore' });
+  ffmpegAvailable = true;
+} catch (err) {
+  ffmpegAvailable = false;
+}
 
 // Clean up old files every hour
 setInterval(() => {
@@ -50,6 +59,10 @@ setInterval(() => {
 }, 3600000);
 
 // --- ROUTES ---
+
+app.get('/api/ffmpeg', (req, res) => {
+  res.json({ available: ffmpegAvailable });
+});
 
 app.get('/api/info', async (req, res) => {
   const { url } = req.query;
@@ -144,6 +157,10 @@ app.get('/api/download/:id', (req, res) => {
     res.status(500).send({ error: err.message });
   });
 
+  res.on('finish', () => {
+    fs.rm(folderPath, { recursive: true, force: true }, () => {});
+  });
+
   archive.finalize();
 });
 
@@ -232,6 +249,7 @@ io.on('connection', (socket) => {
       '320k': '0'
     };
 
+    const maxHeight = Number.parseInt(String(quality).replace('p', ''), 10);
     const defaultFormatFlags = isAudio
       ? {
           extractAudio: true,
@@ -239,8 +257,10 @@ io.on('connection', (socket) => {
           audioQuality: audioQualityMap[quality] ?? '5'
         }
       : {
-          format: `best[height<=${quality.replace('p', '')}][vcodec!=none][acodec!=none][ext=mp4]/best[height<=${quality.replace('p', '')}][vcodec!=none][acodec!=none]`,
-          mergeOutputFormat: 'mp4'
+          // Prefer separate best video + audio so 2K/4K are available, then merge.
+          format: `bestvideo[height<=${maxHeight}][vcodec!=none]+bestaudio[acodec!=none]/best[height<=${maxHeight}][vcodec!=none][acodec!=none]`,
+          mergeOutputFormat: 'mp4',
+          recodeVideo: 'mp4'
         };
 
     const flags = { ...baseFlags, ...defaultFormatFlags };
@@ -269,21 +289,20 @@ io.on('connection', (socket) => {
       if (video && video.formatId) {
         const hasVideo = video.hasVideo === true;
         const hasAudio = video.hasAudio === true;
-        const shouldRecodeVideo = video.ext && video.ext !== 'mp4';
 
         if (hasVideo && hasAudio) {
           perVideoFlags = {
             ...baseFlags,
             format: video.formatId,
             mergeOutputFormat: 'mp4',
-            ...(shouldRecodeVideo ? { recodeVideo: 'mp4' } : {})
+            recodeVideo: 'mp4'
           };
         } else if (hasVideo && !hasAudio) {
           perVideoFlags = {
             ...baseFlags,
-            format: `${video.formatId}+bestaudio`,
+            format: `${video.formatId}+bestaudio[acodec!=none]`,
             mergeOutputFormat: 'mp4',
-            ...(shouldRecodeVideo ? { recodeVideo: 'mp4' } : {})
+            recodeVideo: 'mp4'
           };
         } else if (!hasVideo && hasAudio) {
           perVideoFlags = {
@@ -294,7 +313,12 @@ io.on('connection', (socket) => {
             audioQuality: audioQualityMap[quality] ?? '5'
           };
         } else {
-          perVideoFlags = { ...baseFlags, format: video.formatId };
+          perVideoFlags = {
+            ...baseFlags,
+            format: video.formatId,
+            mergeOutputFormat: 'mp4',
+            recodeVideo: 'mp4'
+          };
         }
       }
 

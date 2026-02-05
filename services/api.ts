@@ -19,6 +19,14 @@ export const fetchVideoFormats = async (videoId: string): Promise<VideoFormatOpt
   return response.json();
 };
 
+export const fetchFfmpegStatus = async (): Promise<{ available: boolean }> => {
+  const response = await fetch(`${API_URL}/api/ffmpeg`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch FFmpeg status');
+  }
+  return response.json();
+};
+
 export class DownloadSocket {
   private socket: Socket;
 

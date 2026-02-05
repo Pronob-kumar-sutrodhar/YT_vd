@@ -36,20 +36,52 @@ export const VideoList: React.FC<VideoListProps> = ({
     return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
   };
 
-  const formatLabel = (format: VideoFormatOption) => {
+  const formatLabel = (format: VideoFormatOption, audioMode: boolean) => {
     const parts: string[] = [];
-    if (format.height) parts.push(`${format.height}p`);
-    if (format.fps) parts.push(`${format.fps}fps`);
+    if (!audioMode && format.height) parts.push(`${format.height}p`);
+    if (!audioMode && format.fps) parts.push(`${format.fps}fps`);
     if (format.ext) parts.push(format.ext.toUpperCase());
-    if (format.hasVideo && format.hasAudio) parts.push('A/V');
-    else if (format.hasVideo) parts.push('Video');
-    else if (format.hasAudio) parts.push('Audio');
-    if (format.tbr) parts.push(`${Math.round(format.tbr)}kbps`);
+    if (audioMode && format.tbr) parts.push(`${Math.round(format.tbr)}kbps`);
     const size = formatBytes(format.filesize);
     if (size) parts.push(size);
-    if (format.note) parts.push(format.note);
-    return parts.join(' · ');
+    return parts.join(' | ');
   };
+
+  const pickBestFormats = (formats: VideoFormatOption[], audioMode: boolean) => {
+    if (audioMode) {
+      return formats
+        .filter((format) => format.hasAudio && !format.hasVideo)
+        .sort((a, b) => {
+          const aScore = (a.tbr ?? 0) + (a.filesize ?? 0) / 1_000_000;
+          const bScore = (b.tbr ?? 0) + (b.filesize ?? 0) / 1_000_000;
+          return bScore - aScore;
+        });
+    }
+
+    const bestByHeight = new Map<number, VideoFormatOption>();
+    const candidates = formats.filter((format) => format.hasVideo && format.height);
+    for (const format of candidates) {
+      const height = format.height as number;
+      const current = bestByHeight.get(height);
+      if (!current) {
+        bestByHeight.set(height, format);
+        continue;
+      }
+      const score = (f: VideoFormatOption) => {
+        const extBonus = f.ext?.toLowerCase() === 'mp4' ? 1000 : 0;
+        const fps = f.fps ?? 0;
+        const tbr = f.tbr ?? 0;
+        const size = (f.filesize ?? 0) / 1_000_000;
+        return extBonus + fps * 10 + tbr + size;
+      };
+      if (score(format) > score(current)) {
+        bestByHeight.set(height, format);
+      }
+    }
+
+    return Array.from(bestByHeight.values()).sort((a, b) => (b.height ?? 0) - (a.height ?? 0));
+  };
+
   const getStatusIcon = (status: VideoItem['status']) => {
     switch (status) {
       case 'completed': return <CheckCircle2 className="w-5 h-5 text-neon-500" />;
@@ -124,26 +156,34 @@ export const VideoList: React.FC<VideoListProps> = ({
             {selectable && (
               <div className="mt-2">
                 {item.formats && item.formats.length > 0 ? (
-                  <select
-                    value={item.selectedFormatId ?? ''}
-                    onChange={(e) => onSelectFormat?.(item.id, e.target.value)}
-                    className="w-full bg-dark-900/70 border border-ink-800/70 text-ink-100 text-xs rounded-lg focus:ring-electric-500 focus:border-electric-500 block p-2"
-                  >
-                    <option value="" disabled>Select a format</option>
-                    {item.formats.map((format) => (
-                      <option key={format.id} value={format.id}>
-                        {formatLabel(format)} (id: {format.id})
-                      </option>
-                    ))}
-                  </select>
+                  (() => {
+                    const displayFormats = pickBestFormats(item.formats, isAudio);
+                    return displayFormats.length > 0 ? (
+                      <select
+                        value={item.selectedFormatId ?? ''}
+                        onChange={(e) => onSelectFormat?.(item.id, e.target.value)}
+                        className="w-full bg-dark-900/70 border border-ink-800/70 text-ink-100 text-xs rounded-lg focus:ring-electric-500 focus:border-electric-500 block p-2"
+                      >
+                        <option value="" disabled>Select a format</option>
+                        {displayFormats.map((format) => (
+                          <option key={format.id} value={format.id}>
+                            {formatLabel(format, isAudio)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="text-xs text-ink-500">No compatible formats found.</div>
+                    );
+                  })()
                 ) : (
+
                   <button
                     type="button"
                     onClick={() => onLoadFormats?.(item.id)}
                     disabled={formatLoadingIds?.has(item.id)}
                     className="text-xs text-ink-300 border border-ink-800/70 rounded-lg px-3 py-2 hover:bg-dark-900/60 transition disabled:opacity-50"
                   >
-                    {formatLoadingIds?.has(item.id) ? 'Loading formats…' : 'Load formats'}
+                    {formatLoadingIds?.has(item.id) ? 'Loading formats...' : 'Load formats'}
                   </button>
                 )}
               </div>
