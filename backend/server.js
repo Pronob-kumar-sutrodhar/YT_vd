@@ -71,8 +71,11 @@ const applyYtFlags = (flags) => {
     userAgent: YT_USER_AGENT,
     geoBypass: true,
     geoBypassCountry: 'US',
-    allowUnplayableFormats: true,
-    extractorArgs: 'youtube:player_client=web,android'
+    // Render environments sometimes have flaky IPv6. Forcing IPv4 improves reliability.
+    forceIpv4: true,
+    // Newer yt-dlp versions may require a JS runtime for signature/challenge solving.
+    // We already have Node in the container, so enable it as a runtime.
+    jsRuntimes: 'node'
   };
   if (ytCookiesPath) {
     next.cookies = ytCookiesPath;
