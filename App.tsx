@@ -13,7 +13,7 @@ import { Button } from './components/Button';
 import { SettingsPanel } from './components/SettingsPanel';
 import { VideoList } from './components/VideoList';
 import { ProgressBar } from './components/ProgressBar';
-import { fetchPlaylistInfo, fetchVideoFormats, fetchFfmpegStatus, DownloadSocket } from './services/api';
+import { API_URL, fetchPlaylistInfo, fetchVideoFormats, fetchFfmpegStatus, DownloadSocket } from './services/api';
 import { AppConfig, AudioQuality, DownloadFormat, SpeedMode, VideoItem, VideoQuality, PlaylistStats } from './types';
 
 function App() {
@@ -209,7 +209,7 @@ function App() {
 
   const handleDownloadZip = () => {
     if (downloadUrl) {
-      window.location.href = `http://localhost:3001${downloadUrl}`;
+      window.location.href = `${API_URL}${downloadUrl}`;
     }
   };
 

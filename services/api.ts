@@ -1,7 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { VideoItem, AppConfig, DownloadFormat, SpeedMode, VideoFormatOption } from '../types';
 
-const API_URL = 'https://yt-vd-1.onrender.com';
+export const API_URL = 'https://yt-vd-1.onrender.com';
 
 const parseErrorMessage = async (response: Response) => {
   try {
