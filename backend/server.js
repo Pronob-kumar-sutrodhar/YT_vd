@@ -15,6 +15,14 @@ const { execSync } = require('child_process');
 const youtubedl = require('yt-dlp-exec');
 const archiver = require('archiver');
 
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
+});
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -77,6 +85,10 @@ setInterval(() => {
 }, 3600000);
 
 // --- ROUTES ---
+
+app.get('/', (req, res) => {
+  res.send('OK');
+});
 
 app.get('/api/ffmpeg', (req, res) => {
   res.json({ available: ffmpegAvailable });
