@@ -70,7 +70,9 @@ const applyYtFlags = (flags) => {
     ...flags,
     userAgent: YT_USER_AGENT,
     geoBypass: true,
-    geoBypassCountry: 'US'
+    geoBypassCountry: 'US',
+    allowUnplayableFormats: true,
+    extractorArgs: 'youtube:player_client=web,android'
   };
   if (ytCookiesPath) {
     next.cookies = ytCookiesPath;
@@ -119,7 +121,7 @@ app.get('/api/info', async (req, res) => {
       skipDownload: true,
       noCheckCertificates: true,
       ignoreErrors: true,
-      format: 'best'
+      format: 'bestvideo*+bestaudio/best'
     });
 
     if (isPlaylist) {
@@ -165,7 +167,7 @@ app.get('/api/formats/:id', async (req, res) => {
       skipDownload: true,
       noCheckCertificates: true,
       ignoreErrors: true,
-      format: 'best'
+      format: 'bestvideo*+bestaudio/best'
     }));
 
     const formats = (output.formats || []).map((format) => ({
