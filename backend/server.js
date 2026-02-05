@@ -39,6 +39,24 @@ try {
   ffmpegAvailable = false;
 }
 
+const YT_USER_AGENT =
+  process.env.YT_USER_AGENT ||
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
+const YT_COOKIES_PATH = process.env.YT_COOKIES_PATH;
+
+const applyYtFlags = (flags) => {
+  const next = {
+    ...flags,
+    userAgent: YT_USER_AGENT,
+    geoBypass: true,
+    geoBypassCountry: 'US'
+  };
+  if (YT_COOKIES_PATH) {
+    next.cookies = YT_COOKIES_PATH;
+  }
+  return next;
+};
+
 // Clean up old files every hour
 setInterval(() => {
   const oneHourAgo = Date.now() - 3600000;
@@ -70,13 +88,13 @@ app.get('/api/info', async (req, res) => {
 
   try {
     const isPlaylist = /[?&]list=/.test(url);
-    const infoFlags = {
+    const infoFlags = applyYtFlags({
       dumpSingleJson: true,
       noWarnings: true,
       skipDownload: true,
       noCheckCertificates: true,
       ignoreErrors: true
-    };
+    });
 
     if (isPlaylist) {
       infoFlags.flatPlaylist = true;
@@ -104,8 +122,9 @@ app.get('/api/info', async (req, res) => {
 
     res.json(videos);
   } catch (err) {
-    console.error('Info Error:', err);
-    res.status(500).json({ error: 'Failed to fetch playlist info' });
+    const details = err?.stderr?.toString?.() || err?.message || String(err);
+    console.error('Info Error:', details);
+    res.status(500).json({ error: 'Failed to fetch playlist info', details });
   }
 });
 
@@ -114,13 +133,13 @@ app.get('/api/formats/:id', async (req, res) => {
   if (!videoId) return res.status(400).json({ error: 'Video ID required' });
 
   try {
-    const output = await youtubedl(`https://www.youtube.com/watch?v=${videoId}`, {
+    const output = await youtubedl(`https://www.youtube.com/watch?v=${videoId}`, applyYtFlags({
       dumpSingleJson: true,
       noWarnings: true,
       skipDownload: true,
       noCheckCertificates: true,
       ignoreErrors: true
-    });
+    }));
 
     const formats = (output.formats || []).map((format) => ({
       id: format.format_id,
@@ -136,8 +155,9 @@ app.get('/api/formats/:id', async (req, res) => {
 
     res.json(formats);
   } catch (err) {
-    console.error('Formats Error:', err);
-    res.status(500).json({ error: 'Failed to fetch video formats' });
+    const details = err?.stderr?.toString?.() || err?.message || String(err);
+    console.error('Formats Error:', details);
+    res.status(500).json({ error: 'Failed to fetch video formats', details });
   }
 });
 
@@ -232,7 +252,7 @@ io.on('connection', (socket) => {
     const concurrentFragments =
       speedMode === 'TURBO' ? 8 : speedMode === 'FAST' ? 4 : 2;
 
-    const baseFlags = {
+    const baseFlags = applyYtFlags({
       noWarnings: true,
       output: `${sessionDir}/%(title)s.%(ext)s`,
       retries: 10,
@@ -240,7 +260,7 @@ io.on('connection', (socket) => {
       concurrentFragments: concurrentFragments,
       bufferSize: '16K',
       httpChunkSize: '10M'
-    };
+    });
 
     const audioQualityMap = {
       '64k': '6',

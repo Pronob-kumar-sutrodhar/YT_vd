@@ -3,10 +3,20 @@ import { VideoItem, AppConfig, DownloadFormat, SpeedMode, VideoFormatOption } fr
 
 const API_URL = 'https://yt-vd-1.onrender.com';
 
+const parseErrorMessage = async (response: Response) => {
+  try {
+    const data = await response.json();
+    return data?.details || data?.error || null;
+  } catch {
+    return null;
+  }
+};
+
 export const fetchPlaylistInfo = async (url: string): Promise<VideoItem[]> => {
   const response = await fetch(`${API_URL}/api/info?url=${encodeURIComponent(url)}`);
   if (!response.ok) {
-    throw new Error('Failed to fetch playlist info');
+    const message = await parseErrorMessage(response);
+    throw new Error(message || 'Failed to fetch playlist info');
   }
   return response.json();
 };
@@ -14,7 +24,8 @@ export const fetchPlaylistInfo = async (url: string): Promise<VideoItem[]> => {
 export const fetchVideoFormats = async (videoId: string): Promise<VideoFormatOption[]> => {
   const response = await fetch(`${API_URL}/api/formats/${encodeURIComponent(videoId)}`);
   if (!response.ok) {
-    throw new Error('Failed to fetch video formats');
+    const message = await parseErrorMessage(response);
+    throw new Error(message || 'Failed to fetch video formats');
   }
   return response.json();
 };

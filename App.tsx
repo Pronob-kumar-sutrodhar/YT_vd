@@ -112,7 +112,8 @@ function App() {
       setSelectedIds(new Set(items.map(item => item.id)));
       setPhase('preview');
     } catch (err) {
-      setError("Could not fetch playlist. Ensure the URL is public and valid.");
+      const message = err instanceof Error ? err.message : 'Could not fetch playlist. Ensure the URL is public and valid.';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -223,7 +224,8 @@ function App() {
         return { ...item, formats, selectedFormatId: item.selectedFormatId ?? bestFormatId };
       }));
     } catch (err) {
-      setError('Failed to load formats for this video.');
+      const message = err instanceof Error ? err.message : 'Failed to load formats for this video.';
+      setError(message);
     } finally {
       setFormatLoadingIds(prev => {
         const next = new Set(prev);
