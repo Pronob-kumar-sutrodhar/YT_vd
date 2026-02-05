@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TurboPlaylist - High-Speed Downloader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Space Grotesk', 'sans-serif'],
+              mono: ['IBM Plex Mono', 'monospace'],
+            },
+            colors: {
+              neon: {
+                50: '#effef6',
+                100: '#d6ffe9',
+                400: '#4ef6b1',
+                500: '#2ee59d',
+                600: '#18c481',
+                900: '#0b3b2b',
+              },
+              dark: {
+                800: '#141521',
+                900: '#0b0d14',
+              },
+              ink: {
+                50: '#f6f7fb',
+                200: '#d7dbe7',
+                400: '#8a94ad',
+                600: '#4d5671',
+                800: '#2a3144',
+                900: '#1a1f2d'
+              },
+              electric: {
+                400: '#7ee7ff',
+                500: '#4fd7ff',
+                600: '#1dc2ff'
+              }
+            },
+            animation: {
+              'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'float-slow': 'float 8s ease-in-out infinite',
+              'float-fast': 'float 5s ease-in-out infinite',
+              'fade-up': 'fadeUp 0.7s ease-out both',
+              'fade-in': 'fadeIn 0.8s ease-out both',
+              'glow': 'glow 3s ease-in-out infinite'
+            },
+            keyframes: {
+              float: {
+                '0%, 100%': { transform: 'translateY(0px)' },
+                '50%': { transform: 'translateY(-12px)' }
+              },
+              fadeUp: {
+                '0%': { opacity: 0, transform: 'translateY(16px)' },
+                '100%': { opacity: 1, transform: 'translateY(0)' }
+              },
+              fadeIn: {
+                '0%': { opacity: 0 },
+                '100%': { opacity: 1 }
+              },
+              glow: {
+                '0%, 100%': { boxShadow: '0 0 0px rgba(79, 215, 255, 0.0)' },
+                '50%': { boxShadow: '0 0 24px rgba(79, 215, 255, 0.35)' }
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #0b0d14;
+        color: #e6e9f2;
+        background-image:
+          radial-gradient(1200px 600px at 10% -10%, rgba(79, 215, 255, 0.18), transparent 60%),
+          radial-gradient(900px 500px at 90% 10%, rgba(78, 246, 177, 0.14), transparent 55%),
+          radial-gradient(700px 500px at 50% 120%, rgba(46, 229, 157, 0.12), transparent 60%);
+        background-attachment: fixed;
+      }
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #141521; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #2a3144; 
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #3a425a; 
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "socket.io-client": "https://esm.sh/socket.io-client@^4.7.2"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
