@@ -211,14 +211,13 @@ app.get('/api/download/:id', (req, res) => {
 
 // --- DOWNLOAD MANAGER ---
 
-const queueDownload = async (video, sessionDir, flags, socket) => {
+const queueDownload = async (video, sessionDir, flags, socket, fallbackFlags) => {
   const videoUrl = `https://www.youtube.com/watch?v=${video.id}`;
 
-  // Create a promise that wraps the yt-dlp execution
-  return new Promise((resolve) => {
+  const runDownload = (downloadFlags) => new Promise((resolve, reject) => {
     try {
       // Add newline flag to ensure parsable stdout
-      const subprocess = youtubedl.exec(videoUrl, { ...flags, newline: true });
+      const subprocess = youtubedl.exec(videoUrl, { ...downloadFlags, newline: true });
 
       if (subprocess.stdout) {
         subprocess.stdout.on('data', (data) => {
@@ -245,23 +244,37 @@ const queueDownload = async (video, sessionDir, flags, socket) => {
         });
       }
 
-      // Handle completion
       subprocess
-        .then(() => {
-          socket.emit('video_complete', { videoId: video.id });
-          resolve();
-        })
-        .catch((err) => {
-          console.error(`Error downloading ${video.id}:`, err);
-          // Treat as complete but maybe with error state in future
-          socket.emit('video_complete', { videoId: video.id });
-          resolve();
-        });
+        .then(() => resolve())
+        .catch((err) => reject(err));
     } catch (error) {
-      console.error(`Spawn error ${video.id}:`, error);
-      resolve();
+      reject(error);
     }
   });
+
+  const getErrorDetails = (err) =>
+    err?.stderr?.toString?.() || err?.message || String(err);
+
+  try {
+    await runDownload(flags);
+    socket.emit('video_complete', { videoId: video.id });
+  } catch (err) {
+    const details = getErrorDetails(err);
+    if (fallbackFlags && /Requested format is not available/i.test(details)) {
+      console.warn(`Format not available for ${video.id}. Falling back to default quality.`);
+      try {
+        await runDownload(fallbackFlags);
+        socket.emit('video_complete', { videoId: video.id });
+        return;
+      } catch (fallbackErr) {
+        console.error(`Fallback download failed for ${video.id}:`, getErrorDetails(fallbackErr));
+      }
+    } else {
+      console.error(`Error downloading ${video.id}:`, details);
+    }
+    // Treat as complete but maybe with error state in future
+    socket.emit('video_complete', { videoId: video.id });
+  }
 };
 
 io.on('connection', (socket) => {
@@ -368,7 +381,8 @@ io.on('connection', (socket) => {
       }
 
       // We await the individual video download here
-      await queueDownload(video, sessionDir, perVideoFlags, socket);
+      const fallbackFlags = video && video.formatId ? flags : undefined;
+      await queueDownload(video, sessionDir, perVideoFlags, socket, fallbackFlags);
 
       active--;
       completed++;
