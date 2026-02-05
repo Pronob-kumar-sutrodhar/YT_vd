@@ -50,7 +50,20 @@ try {
 const YT_USER_AGENT =
   process.env.YT_USER_AGENT ||
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
-const YT_COOKIES_PATH = process.env.YT_COOKIES_PATH;
+
+let ytCookiesPath = process.env.YT_COOKIES_PATH;
+const ytCookiesBase64 = process.env.YT_COOKIES_BASE64;
+
+if (!ytCookiesPath && ytCookiesBase64) {
+  try {
+    const cookiesFilePath = path.join('/tmp', 'yt-cookies.txt');
+    const cookiesBuffer = Buffer.from(ytCookiesBase64, 'base64');
+    fs.writeFileSync(cookiesFilePath, cookiesBuffer);
+    ytCookiesPath = cookiesFilePath;
+  } catch (err) {
+    console.error('Failed to write YT cookies file:', err);
+  }
+}
 
 const applyYtFlags = (flags) => {
   const next = {
@@ -59,8 +72,8 @@ const applyYtFlags = (flags) => {
     geoBypass: true,
     geoBypassCountry: 'US'
   };
-  if (YT_COOKIES_PATH) {
-    next.cookies = YT_COOKIES_PATH;
+  if (ytCookiesPath) {
+    next.cookies = ytCookiesPath;
   }
   return next;
 };
